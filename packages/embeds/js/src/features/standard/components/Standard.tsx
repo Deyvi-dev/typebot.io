@@ -62,13 +62,16 @@ export const Standard = (
     <EnvironmentProvider
       value={document.querySelector("typebot-standard")?.shadowRoot as Node}
     >
-      <style>
-        {styles}
-        {hostElementCss}
-      </style>
-      <Show when={isBotDisplayed()}>
-        <Bot {...props} prefilledVariables={prefilledVariables()} />
-      </Show>
+      <style>{hostElementCss}</style>
+      <style>{styles}</style>
+      <div class="w-full h-full flex flex-col">
+        <div id="paymentBrick_container_wrapper" class="w-full">
+          {/* Payment container wrapper */}
+        </div>
+        <Show when={isBotDisplayed()}>
+          <Bot {...props} prefilledVariables={prefilledVariables()} />
+        </Show>
+      </div>
     </EnvironmentProvider>
   );
 };

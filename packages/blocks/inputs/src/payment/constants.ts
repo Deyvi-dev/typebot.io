@@ -2,6 +2,8 @@ import type { PaymentInputBlock } from "./schema";
 
 export enum PaymentProvider {
   STRIPE = "Stripe",
+  MERCADO_PAGO = "MercadoPago",
+  OPENPIX = "OpenPix",
 }
 
 export const defaultPaymentInputOptions = {

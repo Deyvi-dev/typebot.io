@@ -46,5 +46,8 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "dependencies": {
+    "@mercadopago/sdk-react": "^0.0.22"
   }
 }

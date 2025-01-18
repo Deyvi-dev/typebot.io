@@ -1,7 +1,11 @@
 import { isWriteWorkspaceForbidden } from "@/features/workspace/helpers/isWriteWorkspaceForbidden";
 import { authenticatedProcedure } from "@/helpers/server/trpc";
 import { TRPCError } from "@trpc/server";
-import { stripeCredentialsSchema } from "@typebot.io/blocks-inputs/payment/schema";
+import {
+  mercadoPagoCredentialsSchema,
+  openPixCredentialsSchema,
+  stripeCredentialsSchema,
+} from "@typebot.io/blocks-inputs/payment/schema";
 import { googleSheetsCredentialsSchema } from "@typebot.io/blocks-integrations/googleSheets/schema";
 import { smtpCredentialsSchema } from "@typebot.io/blocks-integrations/sendEmail/schema";
 import type { Credentials } from "@typebot.io/credentials/schemas";
@@ -35,6 +39,8 @@ export const createCredentials = authenticatedProcedure
       credentials: z
         .discriminatedUnion("type", [
           stripeCredentialsSchema.pick(inputShape),
+          mercadoPagoCredentialsSchema.pick(inputShape),
+          openPixCredentialsSchema.pick(inputShape),
           smtpCredentialsSchema.pick(inputShape),
           googleSheetsCredentialsSchema.pick(inputShape),
           whatsAppCredentialsSchema.pick(inputShape),

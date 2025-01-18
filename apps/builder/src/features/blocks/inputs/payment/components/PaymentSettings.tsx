@@ -25,6 +25,8 @@ import type {
 } from "@typebot.io/blocks-inputs/payment/schema";
 import React, { type ChangeEvent } from "react";
 import { currencies } from "../currencies";
+import { MercadoPagoConfigModal } from "./MercadoPagoConfigModal";
+import { OpenPixConfigModal } from "./OpenPixConfigModal";
 import { PaymentAddressSettings } from "./PaymentAddressSettings";
 import { StripeConfigModal } from "./StripeConfigModal";
 
@@ -35,13 +37,29 @@ type Props = {
 
 export const PaymentSettings = ({ options, onOptionsChange }: Props) => {
   const { workspace } = useWorkspace();
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const {
+    isOpen: isStripeModalOpen,
+    onOpen: onStripeModalOpen,
+    onClose: onStripeModalClose,
+  } = useDisclosure();
+  const {
+    isOpen: isMercadoPagoModalOpen,
+    onOpen: onMercadoPagoModalOpen,
+    onClose: onMercadoPagoModalClose,
+  } = useDisclosure();
+  const {
+    isOpen: isOpenPixModalOpen,
+    onOpen: onOpenPixModalOpen,
+    onClose: onOpenPixModalClose,
+  } = useDisclosure();
   const { t } = useTranslate();
 
   const updateProvider = (provider: PaymentProvider) => {
     onOptionsChange({
       ...options,
       provider,
+      // Reset credentials when changing provider
+      credentialsId: undefined,
     });
   };
 
@@ -106,6 +124,42 @@ export const PaymentSettings = ({ options, onOptionsChange }: Props) => {
       additionalInformation: { ...options?.additionalInformation, address },
     });
 
+  const getCredentialsModalProps = () => {
+    switch (options?.provider) {
+      case PaymentProvider.STRIPE:
+        return {
+          isOpen: isStripeModalOpen,
+          onOpen: onStripeModalOpen,
+          onClose: onStripeModalClose,
+          modalComponent: StripeConfigModal,
+          type: "stripe" as const,
+          providerName: "Stripe",
+        };
+      case PaymentProvider.MERCADO_PAGO:
+        return {
+          isOpen: isMercadoPagoModalOpen,
+          onOpen: onMercadoPagoModalOpen,
+          onClose: onMercadoPagoModalClose,
+          modalComponent: MercadoPagoConfigModal,
+          type: "mercadopago" as const,
+          providerName: "Mercado Pago",
+        };
+      case PaymentProvider.OPENPIX:
+        return {
+          isOpen: isOpenPixModalOpen,
+          onOpen: onOpenPixModalOpen,
+          onClose: onOpenPixModalClose,
+          modalComponent: OpenPixConfigModal,
+          type: "openpix" as const,
+          providerName: "OpenPix",
+        };
+      default:
+        return null;
+    }
+  };
+
+  const credentialsModalProps = getCredentialsModalProps();
+
   return (
     <Stack spacing={4}>
       <Stack>
@@ -118,17 +172,17 @@ export const PaymentSettings = ({ options, onOptionsChange }: Props) => {
       </Stack>
       <Stack>
         <Text>{t("blocks.inputs.payment.settings.account.label")}</Text>
-        {workspace && (
+        {workspace && credentialsModalProps && (
           <CredentialsDropdown
-            type="stripe"
+            type={credentialsModalProps.type}
             workspaceId={workspace.id}
             currentCredentialsId={options?.credentialsId}
             onCredentialsSelect={updateCredentials}
-            onCreateNewClick={onOpen}
+            onCreateNewClick={credentialsModalProps.onOpen}
             credentialsName={t(
               "blocks.inputs.payment.settings.accountText.label",
               {
-                provider: "Stripe",
+                provider: credentialsModalProps.providerName,
               },
             )}
           />
@@ -217,11 +271,13 @@ export const PaymentSettings = ({ options, onOptionsChange }: Props) => {
         </AccordionItem>
       </Accordion>
 
-      <StripeConfigModal
-        isOpen={isOpen}
-        onClose={onClose}
-        onNewCredentials={updateCredentials}
-      />
+      {credentialsModalProps && (
+        <credentialsModalProps.modalComponent
+          isOpen={credentialsModalProps.isOpen}
+          onClose={credentialsModalProps.onClose}
+          onNewCredentials={updateCredentials}
+        />
+      )}
     </Stack>
   );
 };

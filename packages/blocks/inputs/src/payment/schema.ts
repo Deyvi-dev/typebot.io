@@ -49,9 +49,10 @@ export const paymentInputOptionsSchema = optionBaseSchema.merge(
 );
 
 export const paymentInputRuntimeOptionsSchema = z.object({
-  paymentIntentSecret: z.string(),
+  paymentIntentSecret: z.string().optional(),
+  preferenceId: z.string().optional(),
   amountLabel: z.string(),
-  publicKey: z.string(),
+  publicKey: z.string().optional(),
 });
 
 export const paymentInputSchema = blockBaseSchema
@@ -82,11 +83,45 @@ export const stripeCredentialsSchema = z
   })
   .merge(credentialsBaseSchema);
 
+export const mercadoPagoCredentialsSchema = z
+  .object({
+    type: z.literal("mercadopago"),
+    data: z.object({
+      live: z.object({
+        accessToken: z.string(),
+        publicKey: z.string(),
+      }),
+      test: z.object({
+        accessToken: z.string().optional(),
+        publicKey: z.string().optional(),
+      }),
+    }),
+  })
+  .merge(credentialsBaseSchema);
+
+export const openPixCredentialsSchema = z
+  .object({
+    type: z.literal("openpix"),
+    data: z.object({
+      live: z.object({
+        secretKey: z.string(),
+      }),
+      test: z.object({
+        secretKey: z.string().optional(),
+      }),
+    }),
+  })
+  .merge(credentialsBaseSchema);
+
 export type PaymentInputBlock = z.infer<typeof paymentInputSchema>;
 export type PaymentInputRuntimeOptions = z.infer<
   typeof paymentInputRuntimeOptionsSchema
 >;
 export type StripeCredentials = z.infer<typeof stripeCredentialsSchema>;
+export type MercadoPagoCredentials = z.infer<
+  typeof mercadoPagoCredentialsSchema
+>;
+export type OpenPixCredentials = z.infer<typeof openPixCredentialsSchema>;
 export type PaymentAddress = NonNullable<
   NonNullable<PaymentInputBlock["options"]>["additionalInformation"]
 >["address"];

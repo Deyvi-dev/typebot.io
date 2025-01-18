@@ -47,6 +47,73 @@ export type RecordingInputSubmitContent = {
   blobUrl?: string;
 };
 
+export type MercadoPagoInstance = {
+  bricks: () => {
+    create: (
+      type: string,
+      containerId: string,
+      settings: PaymentBrickSettings,
+    ) => Promise<PaymentBrickController>;
+  };
+};
+
+export type PaymentBrickController = {
+  unmount: () => void;
+};
+
+export type PaymentBrickSettings = {
+  initialization: {
+    amount: number;
+    preferenceId?: string;
+  };
+  customization?: {
+    paymentMethods?: {
+      atm?: string;
+      ticket?: string;
+      bank_transfer?: string;
+      credit_card?: string;
+      debit_card?: string;
+      mercado_pago?: string;
+      onboarding_credits?: string;
+      wallet_purchase?: string;
+      max_installments?: number;
+    };
+    visual?: {
+      style?: {
+        theme?: "default" | "dark" | "flat";
+      };
+      texts?: {
+        formSubmit?: string;
+        cardNumber?: string;
+        cardExpirationDate?: string;
+        cardSecurityCode?: string;
+        cardName?: string;
+        installments?: string;
+        issuerBank?: string;
+        documentNumber?: string;
+        emailAddress?: string;
+        formTitle?: string;
+      };
+    };
+  };
+  callbacks: {
+    onReady?: () => void;
+    onSubmit?: (data: PaymentBrickSubmitData) => Promise<void>;
+    onError?: (error: PaymentBrickError) => void;
+  };
+};
+
+export type PaymentBrickSubmitData = {
+  selectedPaymentMethod: string;
+  formData: Record<string, any>;
+};
+
+export type PaymentBrickError = {
+  type: string;
+  message: string;
+  field?: string;
+};
+
 export type InputSubmitContent =
   | TextInputSubmitContent
   | RecordingInputSubmitContent;
