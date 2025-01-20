@@ -2,6 +2,8 @@ import { isWriteWorkspaceForbidden } from "@/features/workspace/helpers/isWriteW
 import { authenticatedProcedure } from "@/helpers/server/trpc";
 import { TRPCError } from "@trpc/server";
 import { stripeCredentialsSchema } from "@typebot.io/blocks-inputs/payment/schema";
+import { mercadoPagoCredentialsSchema } from "@typebot.io/blocks-inputs/payment/schema";
+import { openPixCredentialsSchema } from "@typebot.io/blocks-inputs/payment/schema";
 import { googleSheetsCredentialsSchema } from "@typebot.io/blocks-integrations/googleSheets/schema";
 import { smtpCredentialsSchema } from "@typebot.io/blocks-integrations/sendEmail/schema";
 import { forgedCredentialsSchemas } from "@typebot.io/forge-repository/credentials";
@@ -32,6 +34,8 @@ export const updateCredentials = authenticatedProcedure
       credentialsId: z.string(),
       credentials: z.discriminatedUnion("type", [
         stripeCredentialsSchema.pick(inputShape),
+        mercadoPagoCredentialsSchema.pick(inputShape),
+        openPixCredentialsSchema.pick(inputShape),
         smtpCredentialsSchema.pick(inputShape),
         googleSheetsCredentialsSchema.pick(inputShape),
         whatsAppCredentialsSchema.pick(inputShape),

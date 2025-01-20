@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
 
 const OPENPIX_API_BASE_URL = "https://api.openpix.com.br/api/v1/charge";
+const OPENPIX_PAYMENT_STATUS_URL = "https://api.openpix.com.br/api/v1/charge";
 const CONVERSION_FACTOR = 100;
 
 const openPixPaymentInputSchema = z.object({
@@ -32,7 +33,19 @@ const openPixPaymentOutputSchema = z.object({
     qrCodeUrl: z.string(),
     paymentLinkUrl: z.string(),
     status: z.string(),
+    brCode: z.string().optional(),
   }),
+});
+
+const openPixPaymentStatusInputSchema = z.object({
+  credentialsId: z.string(),
+  correlationId: z.string(),
+});
+
+const openPixPaymentStatusOutputSchema = z.object({
+  success: z.boolean(),
+  status: z.string(),
+  paidAmount: z.number().optional(),
 });
 
 const fetchOpenPixCredentials = async (
@@ -79,6 +92,7 @@ export const openPixPayment = publicProcedure
   .mutation(async ({ input }) => {
     const credentials = await fetchOpenPixCredentials(input.credentialsId);
     const correlationId = input.correlationId ?? uuidv4();
+    console.log("correlationId, credentials", correlationId, credentials);
     try {
       const { charge } = await ky
         .post(OPENPIX_API_BASE_URL, {
@@ -97,6 +111,7 @@ export const openPixPayment = publicProcedure
             qrCodeImage: string;
             paymentLinkUrl: string;
             status: string;
+            brCode?: string;
           };
         }>();
 
@@ -107,6 +122,7 @@ export const openPixPayment = publicProcedure
           qrCodeUrl: charge.qrCodeImage,
           paymentLinkUrl: charge.paymentLinkUrl,
           status: charge.status,
+          brCode: charge.brCode,
         },
       };
     } catch (error) {
@@ -114,6 +130,53 @@ export const openPixPayment = publicProcedure
         code: "INTERNAL_SERVER_ERROR",
         message:
           error instanceof Error ? error.message : "Payment processing failed",
+      });
+    }
+  });
+
+export const openPixPaymentStatus = publicProcedure
+  .meta({
+    openapi: {
+      method: "POST",
+      path: "/v1/payments/openpix/status",
+      tags: ["Payments"],
+      summary: "Check OpenPix payment status",
+      description: "Check the status of an OpenPix payment",
+    },
+  })
+  .input(openPixPaymentStatusInputSchema)
+  .output(openPixPaymentStatusOutputSchema)
+  .mutation(async ({ input }) => {
+    const credentials = await fetchOpenPixCredentials(input.credentialsId);
+
+    try {
+      const response = await ky
+        .get(`${OPENPIX_PAYMENT_STATUS_URL}/${input.correlationId}`, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: credentials.data.live.secretKey,
+          },
+        })
+        .json<{
+          charge: {
+            status: string;
+            value?: number;
+          };
+        }>();
+      return {
+        success: true,
+        status: response.charge.status,
+        paidAmount: response.charge.value
+          ? response.charge.value / CONVERSION_FACTOR
+          : undefined,
+      };
+    } catch (error) {
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Payment status check failed",
       });
     }
   });

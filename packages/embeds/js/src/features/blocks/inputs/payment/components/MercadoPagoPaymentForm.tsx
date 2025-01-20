@@ -8,6 +8,7 @@ import type {
 import type { BotContext } from "@/types";
 import type { PaymentInputBlock } from "@typebot.io/blocks-inputs/payment/schema";
 import type { RuntimeOptions } from "@typebot.io/bot-engine/schemas/api";
+import { getRuntimeVariable } from "@typebot.io/env/getRuntimeVariable";
 import { Show, createSignal, onCleanup, onMount } from "solid-js";
 
 declare global {
@@ -31,27 +32,8 @@ type Props = {
   onTransitionEnd: () => void;
 };
 
-type PaymentMethodData = {
-  payment_method_id?: string;
-  payment_type_id?: string;
-  transaction_amount: number;
-  description?: string;
-  payer?: {
-    name?: string;
-    email?: string;
-    phone?: {
-      number?: string;
-    };
-    identification?: {
-      type?: string;
-      number?: string;
-    };
-  };
-};
-
 const PAYMENT_CONTAINER_ID = "paymentBrick_container";
 const STATUS_CONTAINER_ID = "statusScreenBrick_container";
-const CARD_PAYMENT_CONTAINER_ID = "cardPaymentBrick_container";
 const SLOT_NAME = "mercadopago-payment-form";
 
 export function MercadoPagoPaymentForm(props: Props) {
@@ -80,11 +62,6 @@ export function MercadoPagoPaymentForm(props: Props) {
     statusElementContainer.id = STATUS_CONTAINER_ID;
     statusElementContainer.style.display = "none";
     paymentPlaceholder.appendChild(statusElementContainer);
-
-    const cardPaymentElementContainer = document.createElement("div");
-    cardPaymentElementContainer.id = CARD_PAYMENT_CONTAINER_ID;
-    cardPaymentElementContainer.style.display = "none";
-    paymentPlaceholder.appendChild(cardPaymentElementContainer);
   };
 
   const renderStatusScreenBrick = async (
@@ -165,7 +142,7 @@ export function MercadoPagoPaymentForm(props: Props) {
           try {
             setMessage(undefined);
 
-            const { apiHost, sessionId } = props.context;
+            const { sessionId } = props.context;
             const { amount, currency, credentialsId } = props.options ?? {};
 
             if (!amount || !currency || !credentialsId) {
@@ -183,48 +160,24 @@ export function MercadoPagoPaymentForm(props: Props) {
               throw new Error("No payment method selected");
             }
 
-            const paymentData: PaymentMethodData = {
-              payment_method_id: paymentMethodId,
-              payment_type_id: paymentMethodId,
-              transaction_amount: Number(amount),
-              description:
-                props.options?.additionalInformation?.description ||
-                `Payment for ${paymentMethodId}`,
-              payer: {
-                name: formData?.payer?.name,
-                email: formData?.payer?.email || "user@example.com",
-                phone: {
-                  number: formData?.payer?.phone?.number,
-                },
-                identification: {
-                  type: formData?.payer?.identification?.type || "CPF",
-                  number: formData?.payer?.identification?.number,
-                },
-              },
-            };
+            const apiHost =
+              props.context.apiHost ??
+              getRuntimeVariable("NEXT_PUBLIC_VIEWER_URL");
 
-            const response = await fetch(`/api/v1/payments/mercadopago`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                sessionId,
-                paymentMethodId,
-                amount: Number(amount),
-                currency,
-                credentialsId,
-                formData: paymentData,
-                additionalInformation: {
-                  name: paymentData.payer?.name,
-                  email: paymentData.payer?.email,
-                  phoneNumber: paymentData.payer?.phone?.number,
-                  description: paymentData.description,
-                  documentType: paymentData.payer?.identification?.type,
-                  documentNumber: paymentData.payer?.identification?.number,
+            const response = await fetch(
+              `${apiHost}/api/v1/payments/mercadopago`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
                 },
-              }),
-            });
+                body: JSON.stringify({
+                  credentialsId,
+                  formData,
+                  isPreview: props.context.isPreview ?? false,
+                }),
+              },
+            );
 
             if (!response.ok) {
               const errorData = await response.json().catch(() => ({}));
@@ -274,153 +227,6 @@ export function MercadoPagoPaymentForm(props: Props) {
     }
   };
 
-  const renderCardPaymentBrick = async (
-    bricksBuilder: ReturnType<MercadoPagoInstance["bricks"]>,
-  ) => {
-    const settings: PaymentBrickSettings = {
-      initialization: {
-        amount: Number(props?.options?.amount) || 0,
-      },
-      customization: {
-        visual: {
-          style: {
-            theme: "default",
-          },
-          texts: {
-            formSubmit: props.options?.labels?.button,
-          },
-        },
-      },
-      callbacks: {
-        onReady: () => {
-          document.getElementById(PAYMENT_CONTAINER_ID)!.style.display = "none";
-          document.getElementById(CARD_PAYMENT_CONTAINER_ID)!.style.display =
-            "block";
-          setTimeout(() => {
-            props.onTransitionEnd();
-          }, 1000);
-        },
-        onSubmit: async ({
-          selectedPaymentMethod,
-          formData,
-        }: PaymentBrickSubmitData) => {
-          try {
-            setMessage(undefined);
-
-            const { apiHost, sessionId } = props.context;
-            const { amount, currency, credentialsId } = props.options ?? {};
-
-            if (!amount || !currency || !credentialsId) {
-              throw new Error("Missing required payment configuration");
-            }
-
-            const paymentMethodId =
-              typeof selectedPaymentMethod === "string"
-                ? selectedPaymentMethod
-                : (selectedPaymentMethod as { payment_method_id?: string })
-                    ?.payment_method_id;
-
-            if (!paymentMethodId) {
-              console.error(
-                "Card Payment Method Debug:",
-                selectedPaymentMethod,
-              );
-              throw new Error("No payment method selected");
-            }
-
-            const paymentData: PaymentMethodData = {
-              payment_method_id: paymentMethodId,
-              payment_type_id: paymentMethodId,
-              transaction_amount: Number(amount),
-              description:
-                props.options?.additionalInformation?.description ||
-                `Card Payment for ${paymentMethodId}`,
-              payer: {
-                name: formData?.payer?.name,
-                email: formData?.payer?.email || "user@example.com",
-                phone: {
-                  number: formData?.payer?.phone?.number,
-                },
-                identification: {
-                  type: formData?.payer?.identification?.type || "CPF",
-                  number: formData?.payer?.identification?.number,
-                },
-              },
-            };
-
-            const response = await fetch(`/api/v1/payments/mercadopago`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                sessionId,
-                paymentMethodId,
-                amount: Number(amount),
-                currency,
-                credentialsId,
-                formData: paymentData,
-                additionalInformation: {
-                  name: paymentData.payer?.name,
-                  email: paymentData.payer?.email,
-                  phoneNumber: paymentData.payer?.phone?.number,
-                  description: paymentData.description,
-                  documentType: paymentData.payer?.identification?.type,
-                  documentNumber: paymentData.payer?.identification?.number,
-                },
-              }),
-            });
-
-            if (!response.ok) {
-              const errorData = await response.json().catch(() => ({}));
-              throw new Error(
-                errorData.error?.message || "Card Payment processing failed",
-              );
-            }
-
-            const result = await response.json();
-
-            if (result.status === "pending" && result.id) {
-              setCurrentView("status");
-              const mp = await loadMercadoPago(props.options?.publicKey || "");
-              const bricksBuilder = mp.bricks();
-              await renderStatusScreenBrick(bricksBuilder, result.id);
-              return;
-            }
-
-            await props.onSuccess();
-          } catch (err) {
-            const errorMessage =
-              err instanceof Error
-                ? err.message
-                : "Card Payment submission failed";
-            setMessage(errorMessage);
-            console.error("MercadoPago card payment submission error:", err);
-          }
-        },
-        onError: (error: PaymentBrickError) => {
-          setMessage(error.message);
-          console.error("MercadoPago card payment error:", error);
-        },
-      },
-    };
-
-    try {
-      window.cardPaymentBrickController = await bricksBuilder.create(
-        "cardPayment",
-        CARD_PAYMENT_CONTAINER_ID,
-        settings,
-      );
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : "Failed to initialize card payment form";
-      setMessage(errorMessage);
-      console.error("MercadoPago card payment initialization error:", err);
-    }
-  };
-
   const initMercadoPago = async () => {
     if (!props?.options?.publicKey) {
       setMessage("Missing MercadoPago public key");
@@ -431,11 +237,7 @@ export function MercadoPagoPaymentForm(props: Props) {
       const mp = await loadMercadoPago(props.options.publicKey);
       const bricksBuilder = mp.bricks();
 
-      if (props.options?.paymentType === "card") {
-        await renderCardPaymentBrick(bricksBuilder);
-      } else {
-        await renderPaymentBrick(bricksBuilder);
-      }
+      await renderPaymentBrick(bricksBuilder);
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to initialize MercadoPago";

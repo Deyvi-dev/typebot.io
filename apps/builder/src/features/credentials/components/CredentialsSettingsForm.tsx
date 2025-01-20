@@ -1,4 +1,6 @@
 import { EditIcon, PlusIcon, TrashIcon } from "@/components/icons";
+import { MercadoPagoLogo } from "@/components/logos/MercadoPagoLogo";
+import { OpenPixLogo } from "@/components/logos/OpenPixLogo";
 import { StripeLogo } from "@/components/logos/StripeLogo";
 import { WhatsAppLogo } from "@/components/logos/WhatsAppLogo";
 import { BlockIcon } from "@/features/editor/components/BlockIcon";
@@ -214,6 +216,10 @@ const CredentialsIcon = ({
       return <StripeLogo rounded="sm" {...props} />;
     case "whatsApp":
       return <WhatsAppLogo {...props} />;
+    case "mercadopago":
+      return <MercadoPagoLogo {...props} />;
+    case "openpix":
+      return <OpenPixLogo {...props} />;
     default:
       return <BlockIcon type={type} {...props} />;
   }
@@ -246,6 +252,18 @@ const CredentialsLabel = ({
       return (
         <Text fontSize="sm" {...props}>
           WhatsApp
+        </Text>
+      );
+    case "mercadopago":
+      return (
+        <Text fontSize="sm" {...props}>
+          Mercado Pago
+        </Text>
+      );
+    case "openpix":
+      return (
+        <Text fontSize="sm" {...props}>
+          OpenPix
         </Text>
       );
     default:

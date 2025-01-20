@@ -10,132 +10,132 @@ import {
   FormControl,
   FormLabel,
   HStack,
-  Modal,
   ModalBody,
   ModalCloseButton,
   ModalContent,
   ModalFooter,
   ModalHeader,
-  ModalOverlay,
   Stack,
   Text,
 } from "@chakra-ui/react";
 import { useTranslate } from "@tolgee/react";
 import type { MercadoPagoCredentials } from "@typebot.io/blocks-inputs/payment/schema";
 import { isNotEmpty } from "@typebot.io/lib/utils";
-import type React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Props = {
-  isOpen: boolean;
-  onClose: () => void;
-  onNewCredentials: (id: string) => void;
+  credentialsId: string;
+  onUpdate: () => void;
 };
 
-export const MercadoPagoConfigModal = ({
-  isOpen,
-  onNewCredentials,
-  onClose,
+export const UpdateMercadoPagoCredentialsModalContent = ({
+  credentialsId,
+  onUpdate,
 }: Props) => {
-  return (
-    <Modal isOpen={isOpen} onClose={onClose}>
-      <ModalOverlay />
-      <MercadoPagoCreateModalContent
-        onNewCredentials={onNewCredentials}
-        onClose={onClose}
-      />
-    </Modal>
-  );
-};
-
-export const MercadoPagoCreateModalContent = ({
-  onNewCredentials,
-  onClose,
-}: Pick<Props, "onClose" | "onNewCredentials">) => {
   const { t } = useTranslate();
   const { user } = useUser();
   const { workspace } = useWorkspace();
-  const [isCreating, setIsCreating] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const { showToast } = useToast();
   const [mercadoPagoConfig, setMercadoPagoConfig] = useState<
     MercadoPagoCredentials["data"] & { name: string }
-  >({
-    name: "",
-    live: {
-      accessToken: "",
-      publicKey: "",
-    },
-    test: {
-      accessToken: "",
-      publicKey: "",
-    },
-  });
-  const {
-    credentials: {
-      listCredentials: { refetch: refetchCredentials },
-    },
-  } = trpc.useContext();
-  const { mutate } = trpc.credentials.createCredentials.useMutation({
-    onMutate: () => setIsCreating(true),
-    onSettled: () => setIsCreating(false),
+  >();
+
+  const { data: existingCredentials } =
+    trpc.credentials.getCredentials.useQuery(
+      {
+        credentialsId,
+        workspaceId: workspace!.id,
+      },
+      {
+        enabled: !!workspace?.id,
+      },
+    );
+
+  useEffect(() => {
+    if (!existingCredentials || mercadoPagoConfig) return;
+    setMercadoPagoConfig({
+      name: existingCredentials.name,
+      live: existingCredentials.data.live,
+      test: existingCredentials.data.test,
+    });
+  }, [existingCredentials, mercadoPagoConfig]);
+
+  const { mutate } = trpc.credentials.updateCredentials.useMutation({
+    onMutate: () => setIsUpdating(true),
+    onSettled: () => setIsUpdating(false),
     onError: (err) => {
       showToast({
         description: err.message,
         status: "error",
       });
     },
-    onSuccess: (data) => {
-      refetchCredentials();
-      onNewCredentials(data.credentialsId);
-      onClose();
+    onSuccess: () => {
+      onUpdate();
     },
   });
 
   const handleNameChange = (name: string) =>
+    mercadoPagoConfig &&
     setMercadoPagoConfig({
       ...mercadoPagoConfig,
       name,
     });
 
   const handlePublicKeyChange = (publicKey: string) =>
+    mercadoPagoConfig &&
     setMercadoPagoConfig({
       ...mercadoPagoConfig,
       live: { ...mercadoPagoConfig.live, publicKey },
     });
 
   const handleAccessTokenChange = (accessToken: string) =>
+    mercadoPagoConfig &&
     setMercadoPagoConfig({
       ...mercadoPagoConfig,
       live: { ...mercadoPagoConfig.live, accessToken },
     });
 
   const handleTestPublicKeyChange = (publicKey: string) =>
+    mercadoPagoConfig &&
     setMercadoPagoConfig({
       ...mercadoPagoConfig,
       test: { ...mercadoPagoConfig.test, publicKey },
     });
 
   const handleTestAccessTokenChange = (accessToken: string) =>
+    mercadoPagoConfig &&
     setMercadoPagoConfig({
       ...mercadoPagoConfig,
       test: { ...mercadoPagoConfig.test, accessToken },
     });
 
-  const createCredentials = async (e: React.FormEvent) => {
+  const updateCredentials = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user?.email || !workspace?.id) return;
+    if (!user?.email || !workspace?.id || !mercadoPagoConfig) return;
+
     mutate({
+      credentialsId,
       credentials: {
         data: {
           live: mercadoPagoConfig.live,
-          test: mercadoPagoConfig.test,
+          test: {
+            publicKey: isNotEmpty(mercadoPagoConfig.test.publicKey)
+              ? mercadoPagoConfig.test.publicKey
+              : undefined,
+            accessToken: isNotEmpty(mercadoPagoConfig.test.accessToken)
+              ? mercadoPagoConfig.test.accessToken
+              : undefined,
+          },
         },
         name: mercadoPagoConfig.name,
-        type: "mercadopago" as const,
+        type: "mercadopago",
         workspaceId: workspace.id,
       },
     });
   };
+
+  if (!mercadoPagoConfig) return null;
 
   return (
     <ModalContent>
@@ -143,7 +143,7 @@ export const MercadoPagoCreateModalContent = ({
         {t("blocks.inputs.payment.settings.mercadoPagoConfig.title.label")}
       </ModalHeader>
       <ModalCloseButton />
-      <form onSubmit={createCredentials}>
+      <form onSubmit={updateCredentials}>
         <ModalBody>
           <Stack spacing={4}>
             <TextInput
@@ -151,6 +151,7 @@ export const MercadoPagoCreateModalContent = ({
               label={t(
                 "blocks.inputs.payment.settings.mercadoPagoConfig.accountName.label",
               )}
+              defaultValue={mercadoPagoConfig.name}
               onChange={handleNameChange}
               placeholder="Typebot Mercado Pago"
               withVariableButton={false}
@@ -172,12 +173,14 @@ export const MercadoPagoCreateModalContent = ({
                   onChange={handleTestPublicKeyChange}
                   placeholder="TEST_PUBLIC_KEY"
                   withVariableButton={false}
+                  defaultValue={mercadoPagoConfig.test.publicKey}
                   debounceTimeout={0}
                 />
                 <TextInput
                   onChange={handleTestAccessTokenChange}
                   placeholder="TEST_ACCESS_TOKEN"
                   withVariableButton={false}
+                  defaultValue={mercadoPagoConfig.test.accessToken}
                   debounceTimeout={0}
                   type="password"
                 />
@@ -195,6 +198,7 @@ export const MercadoPagoCreateModalContent = ({
                     onChange={handlePublicKeyChange}
                     placeholder="LIVE_PUBLIC_KEY"
                     withVariableButton={false}
+                    defaultValue={mercadoPagoConfig.live.publicKey}
                     debounceTimeout={0}
                   />
                 </FormControl>
@@ -203,28 +207,13 @@ export const MercadoPagoCreateModalContent = ({
                     onChange={handleAccessTokenChange}
                     placeholder="LIVE_ACCESS_TOKEN"
                     withVariableButton={false}
+                    defaultValue={mercadoPagoConfig.live.accessToken}
                     debounceTimeout={0}
                     type="password"
                   />
                 </FormControl>
               </HStack>
             </Stack>
-
-            <Text>
-              (
-              {t(
-                "blocks.inputs.payment.settings.mercadoPagoConfig.findKeys.label",
-              )}{" "}
-              <TextLink
-                href="https://www.mercadopago.com.br/developers/panel"
-                isExternal
-              >
-                {t(
-                  "blocks.inputs.payment.settings.mercadoPagoConfig.findKeys.here.label",
-                )}
-              </TextLink>
-              )
-            </Text>
           </Stack>
         </ModalBody>
 
@@ -233,14 +222,22 @@ export const MercadoPagoCreateModalContent = ({
             type="submit"
             colorScheme="blue"
             isDisabled={
+              mercadoPagoConfig.live.accessToken === "" ||
               mercadoPagoConfig.live.publicKey === "" ||
-              mercadoPagoConfig.name === "" ||
-              mercadoPagoConfig.live.accessToken === ""
+              mercadoPagoConfig.name === ""
             }
-            isLoading={isCreating}
+            isLoading={isUpdating}
           >
-            {t("connect")}
+            {t("update")}
           </Button>
+          <TextLink
+            href="https://www.mercadopago.com.ar/developers/es_ar/guides/additional-content/dashboard/introduction"
+            isExternal
+          >
+            {t(
+              "blocks.inputs.payment.settings.mercadoPagoConfig.findCredentials.label",
+            )}
+          </TextLink>
         </ModalFooter>
       </form>
     </ModalContent>

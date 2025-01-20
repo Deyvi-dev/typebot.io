@@ -10,107 +10,106 @@ import {
   FormControl,
   FormLabel,
   HStack,
-  Modal,
   ModalBody,
   ModalCloseButton,
   ModalContent,
   ModalFooter,
   ModalHeader,
-  ModalOverlay,
   Stack,
   Text,
 } from "@chakra-ui/react";
 import { useTranslate } from "@tolgee/react";
 import type { OpenPixCredentials } from "@typebot.io/blocks-inputs/payment/schema";
 import { isNotEmpty } from "@typebot.io/lib/utils";
-import type React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Props = {
-  isOpen: boolean;
-  onClose: () => void;
-  onNewCredentials: (id: string) => void;
+  credentialsId: string;
+  onUpdate: () => void;
 };
 
-export const OpenPixConfigModal = ({
-  isOpen,
-  onNewCredentials,
-  onClose,
+export const UpdateOpenPixCredentialsModalContent = ({
+  credentialsId,
+  onUpdate,
 }: Props) => {
-  return (
-    <Modal isOpen={isOpen} onClose={onClose}>
-      <ModalOverlay />
-      <OpenPixCreateModalContent
-        onNewCredentials={onNewCredentials}
-        onClose={onClose}
-      />
-    </Modal>
-  );
-};
-
-export const OpenPixCreateModalContent = ({
-  onNewCredentials,
-  onClose,
-}: Pick<Props, "onClose" | "onNewCredentials">) => {
   const { t } = useTranslate();
   const { user } = useUser();
   const { workspace } = useWorkspace();
-  const [isCreating, setIsCreating] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const { showToast } = useToast();
   const [openPixConfig, setOpenPixConfig] = useState<
     OpenPixCredentials["data"] & { name: string }
-  >({
-    name: "",
-    live: { secretKey: "" },
-    test: { secretKey: "" },
-  });
-  const {
-    credentials: {
-      listCredentials: { refetch: refetchCredentials },
-    },
-  } = trpc.useContext();
-  const { mutate } = trpc.credentials.createCredentials.useMutation({
-    onMutate: () => setIsCreating(true),
-    onSettled: () => setIsCreating(false),
+  >();
+
+  const { data: existingCredentials } =
+    trpc.credentials.getCredentials.useQuery(
+      {
+        credentialsId,
+        workspaceId: workspace!.id,
+      },
+      {
+        enabled: !!workspace?.id,
+      },
+    );
+
+  useEffect(() => {
+    if (!existingCredentials || openPixConfig) return;
+    setOpenPixConfig({
+      name: existingCredentials.name,
+      live: existingCredentials.data.live,
+      test: existingCredentials.data.test,
+    });
+  }, [existingCredentials, openPixConfig]);
+
+  const { mutate } = trpc.credentials.updateCredentials.useMutation({
+    onMutate: () => setIsUpdating(true),
+    onSettled: () => setIsUpdating(false),
     onError: (err) => {
       showToast({
         description: err.message,
         status: "error",
       });
     },
-    onSuccess: (data) => {
-      refetchCredentials();
-      onNewCredentials(data.credentialsId);
-      onClose();
+    onSuccess: () => {
+      onUpdate();
     },
   });
 
   const handleNameChange = (name: string) =>
+    openPixConfig &&
     setOpenPixConfig({
       ...openPixConfig,
       name,
     });
 
   const handleSecretKeyChange = (secretKey: string) =>
+    openPixConfig &&
     setOpenPixConfig({
       ...openPixConfig,
-      live: { secretKey },
+      live: { ...openPixConfig.live, secretKey },
     });
 
   const handleTestSecretKeyChange = (secretKey: string) =>
+    openPixConfig &&
     setOpenPixConfig({
       ...openPixConfig,
-      test: { secretKey },
+      test: { ...openPixConfig.test, secretKey },
     });
 
-  const createCredentials = async (e: React.FormEvent) => {
+  const updateCredentials = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user?.email || !workspace?.id) return;
+    if (!user?.email || !workspace?.id || !openPixConfig) return;
+
     mutate({
+      credentialsId,
       credentials: {
         data: {
           live: openPixConfig.live,
-          test: openPixConfig.test,
+          test: {
+            secretKey: isNotEmpty(openPixConfig.test.secretKey)
+              ? openPixConfig.test.secretKey
+              : undefined,
+          },
         },
         name: openPixConfig.name,
         type: "openpix",
@@ -119,13 +118,15 @@ export const OpenPixCreateModalContent = ({
     });
   };
 
+  if (!openPixConfig) return null;
+
   return (
     <ModalContent>
       <ModalHeader>
         {t("blocks.inputs.payment.settings.openPixConfig.title.label")}
       </ModalHeader>
       <ModalCloseButton />
-      <form onSubmit={createCredentials}>
+      <form onSubmit={updateCredentials}>
         <ModalBody>
           <Stack spacing={4}>
             <TextInput
@@ -133,8 +134,9 @@ export const OpenPixCreateModalContent = ({
               label={t(
                 "blocks.inputs.payment.settings.openPixConfig.accountName.label",
               )}
+              defaultValue={openPixConfig.name}
               onChange={handleNameChange}
-              placeholder="Typebot"
+              placeholder="Typebot OpenPix"
               withVariableButton={false}
               debounceTimeout={0}
             />
@@ -154,6 +156,7 @@ export const OpenPixCreateModalContent = ({
                   onChange={handleTestSecretKeyChange}
                   placeholder="TEST_SECRET_KEY"
                   withVariableButton={false}
+                  defaultValue={openPixConfig.test.secretKey}
                   debounceTimeout={0}
                   type="password"
                 />
@@ -171,6 +174,7 @@ export const OpenPixCreateModalContent = ({
                     onChange={handleSecretKeyChange}
                     placeholder="LIVE_SECRET_KEY"
                     withVariableButton={false}
+                    defaultValue={openPixConfig.live.secretKey}
                     debounceTimeout={0}
                     type="password"
                   />
@@ -201,9 +205,9 @@ export const OpenPixCreateModalContent = ({
             isDisabled={
               openPixConfig.live.secretKey === "" || openPixConfig.name === ""
             }
-            isLoading={isCreating}
+            isLoading={isUpdating}
           >
-            {t("connect")}
+            {t("update")}
           </Button>
         </ModalFooter>
       </form>

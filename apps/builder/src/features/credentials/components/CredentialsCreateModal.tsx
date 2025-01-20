@@ -1,3 +1,5 @@
+import { MercadoPagoConfigModal } from "@/features/blocks/inputs/payment/components/MercadoPagoConfigModal";
+import { OpenPixConfigModal } from "@/features/blocks/inputs/payment/components/OpenPixConfigModal";
 import { StripeCreateModalContent } from "@/features/blocks/inputs/payment/components/StripeConfigModal";
 import { GoogleSheetConnectModalContent } from "@/features/blocks/integrations/googleSheets/components/GoogleSheetsConnectModal";
 import { SmtpCreateModalContent } from "@/features/blocks/integrations/sendEmail/components/SmtpConfigModal";
@@ -58,6 +60,22 @@ const CredentialsCreateModalContent = ({
     case "whatsApp":
       return (
         <WhatsAppCreateModalContent
+          onNewCredentials={onSubmit}
+          onClose={onClose}
+        />
+      );
+    case "mercadopago":
+      return (
+        <MercadoPagoConfigModal
+          isOpen={true}
+          onNewCredentials={onSubmit}
+          onClose={onClose}
+        />
+      );
+    case "openpix":
+      return (
+        <OpenPixConfigModal
+          isOpen={true}
           onNewCredentials={onSubmit}
           onClose={onClose}
         />

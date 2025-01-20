@@ -69,7 +69,6 @@ const createStripePaymentIntent =
         message:
           "Could not parse amount, make sure your block is configured correctly",
       });
-    // Create a PaymentIntent with the order amount and currency
     const receiptEmail = parseVariables(variables)(
       options.additionalInformation?.email,
     );
@@ -246,9 +245,9 @@ const createOpenPixPayment =
 
     return {
       publicKey:
-        isPreview && openPixKeys.test?.publicKey
-          ? openPixKeys.test.publicKey
-          : openPixKeys.live.publicKey,
+        isPreview && openPixKeys.test?.secretKey
+          ? openPixKeys.test.secretKey
+          : openPixKeys.live.secretKey,
       amountLabel: priceFormatter.format(amount),
     };
   };

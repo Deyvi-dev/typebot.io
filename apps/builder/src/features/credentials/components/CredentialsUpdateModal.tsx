@@ -1,3 +1,5 @@
+import { UpdateMercadoPagoCredentialsModalContent } from "@/features/blocks/inputs/payment/components/UpdateMercadoPagoCredentialsModalContent";
+import { UpdateOpenPixCredentialsModalContent } from "@/features/blocks/inputs/payment/components/UpdateOpenPixCredentialsModalContent";
 import { UpdateStripeCredentialsModalContent } from "@/features/blocks/inputs/payment/components/UpdateStripeCredentialsModalContent";
 import { SmtpUpdateModalContent } from "@/features/blocks/integrations/sendEmail/components/SmtpUpdateModalContent";
 import { UpdateForgedCredentialsModalContent } from "@/features/forge/components/credentials/UpdateForgedCredentialsModalContent";
@@ -59,6 +61,20 @@ const CredentialsUpdateModalContent = ({
       );
     case "whatsApp":
       return null;
+    case "mercadopago":
+      return (
+        <UpdateMercadoPagoCredentialsModalContent
+          credentialsId={editingCredentials.id}
+          onUpdate={onSubmit}
+        />
+      );
+    case "openpix":
+      return (
+        <UpdateOpenPixCredentialsModalContent
+          credentialsId={editingCredentials.id}
+          onUpdate={onSubmit}
+        />
+      );
     default:
       return (
         <UpdateForgedCredentialsModalContent
